@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-page-node-id="QMkPLTS3LECw4hCXO4TNXP" data-dm-ref="1"><head data-page-node-id="JCdAB3OyDwQ1CtDAjZcKg6">
+<meta charset="UTF-8" data-page-node-id="cNcUc93MBN4qafwqbUDFeq">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="8apqbNdLweKHzcXRGk5lE0"><title data-page-node-id="hQbVGvpIVYw5nriSfM4XUZ" data-pnid-children="QWQzyaKvDvgH5d6uqae1GM" style="margin:0;padding:0;box-sizing:border-box;-webkit-user-drag:none !important">动态限流 · 抽屉简化版原型</title><title data-page-node-id="GUJwkAn3dxX54YNzVvVZbl" data-pnid-children="KuNJuTsHEyHSvf0zR92H1G" style="margin:0;padding:0;box-sizing:border-box;-webkit-user-drag:none !important">动态限流 · 抽屉简化版原型</title>
+<title>动态限流 · 抽屉简化版原型</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #e9eaf0; padding: 24px; color: #1a1a2e; }
+  .stage { max-width: 1080px; margin: 0 auto; }
+  .note { font-size: 13px; color: #4b5563; margin-bottom: 16px; line-height: 1.7; }
+  .note b { color: #1a1a2e; }
+  .canvas-mock {
+    background: #f2f3f7; border-radius: 10px; overflow: hidden;
+    display: flex; height: 800px; position: relative;
+  }
+  .grid-bg { flex: 1; padding: 20px; filter: opacity(.55); }
+  .grid-bg .g-title { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .g-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .g-card { background: #fff; border-radius: 8px; padding: 12px; height: 120px; }
+  .g-card .bar { height: 10px; border-radius: 4px; background: #e5e7eb; margin-bottom: 8px; }
+  .g-card .bar.short { width: 55%; }
+
+  /* 抽屉 */
+  .drawer {
+    width: 430px; background: #fff; border-left: 1px solid #e5e7eb;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .d-header { display: flex; align-items: center; gap: 10px; padding: 16px 20px 0; }
+  .avatar { width: 34px; height: 34px; border-radius: 8px; background: #ede9fe; color: #7c3aed; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink: 0; }
+  .d-header h1 { font-size: 15px; font-weight: 600; }
+  .d-header .sub { font-size: 12px; color: #9ca3af; }
+  .d-price { margin: 14px 20px 0; background: #f7f8fa; border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 20px; font-size: 12px; color: #6b7280; }
+  .d-price .pv { color: #1a1a2e; font-weight: 600; font-size: 13px; }
+  .d-sec { padding: 16px 20px 0; font-size: 13px; }
+  .d-sec h2 { font-size: 13.5px; font-weight: 600; text-align: center; margin-bottom: 10px; }
+  .kv { display: flex; padding: 7px 0; border-bottom: 1px solid #f3f4f6; }
+  .kv .k { width: 84px; color: #6b7280; flex-shrink: 0; }
+  .tag { display: inline-block; font-size: 11px; color: #4b5563; background: #f3f4f6; border-radius: 4px; padding: 1px 8px; margin-right: 6px; }
+
+  /* ===== 动态限流：简化版 ===== */
+  .rl { margin: 16px 20px 20px; border: 1px solid #eceef1; border-radius: 10px; overflow: hidden; }
+  .rl-banner {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; background: #f6f2ff;
+    font-size: 12.5px; color: #4c1d95; cursor: default;
+  }
+  .rl-banner .link {
+    margin-left: auto; color: #7c3aed; cursor: pointer;
+    display: flex; align-items: center; gap: 2px; flex-shrink: 0; user-select: none;
+  }
+  .rl-banner .link:hover { text-decoration: underline; }
+  .rl-banner svg { flex-shrink: 0; }
+  .rl-body { border-top: 1px solid #f0eafc; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+  .rl-values { display: flex; }
+  .rl-val { flex: 1; padding: 10px 14px 8px; }
+  .rl-val + .rl-val { border-left: 1px solid #f0eafc; }
+  .rl-val .n { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rl-val .l { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+  .rl-meta { font-size: 11px; color: #9ca3af; padding: 0 14px 8px; display: flex; align-items: center; }
+  .rl-meta .live { width: 6px; height: 6px; border-radius: 50%; background: #10b981; margin-right: 5px; }
+  .rl-meta .re { margin-left: auto; color: #7c3aed; cursor: pointer; user-select: none; }
+  .rl-meta .re:hover { text-decoration: underline; }
+
+  /* 趋势折叠区 */
+  .rl-trend-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 14px; border-top: 1px solid #f0eafc;
+    font-size: 12.5px; color: #374151; cursor: pointer; user-select: none;
+  }
+  .rl-trend-head:hover { background: #fafafa; }
+  .rl-trend-head .arrow { margin-left: auto; transition: transform .2s; color: #9ca3af; font-size: 11px; }
+  .rl-trend-head.open .arrow { transform: rotate(180deg); }
+  .rl-trend { display: none; padding: 6px 14px 14px; border-top: 1px solid #f0eafc; }
+  .rl-trend.show { display: block; animation: fade .2s ease; }
+  .rl-tabs { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; }
+  .rl-tabs .grow { flex: 1; }
+  .rl-tabs button {
+    border: 1px solid #e5e7eb; background: #fff; color: #6b7280;
+    font-size: 11.5px; padding: 3px 10px; border-radius: 5px; cursor: pointer; font-family: inherit;
+    white-space: nowrap;
+  }
+  .rl-tabs button.active { border-color: #7c3aed; color: #7c3aed; background: #f6f2ff; }
+  .rl-legend { display: flex; align-items: center; gap: 12px; font-size: 10.5px; color: #9ca3af; margin-bottom: 6px; }
+  .rl-legend i { display: inline-block; width: 12px; height: 6px; border-radius: 2px; margin-right: 4px; vertical-align: 1px; }
+  .rl-cap { font-size: 11px; color: #9ca3af; margin-top: 8px; }
+  .rl-note {
+    font-size: 11px; color: #4c1d95; background: #f6f2ff;
+    border-radius: 6px; padding: 6px 9px; margin-top: 8px; line-height: 1.5;
+  }
+  .rl-collapse {
+    text-align: center; font-size: 12px; color: #7c3aed;
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid #f0eafc;
+    cursor: pointer; user-select: none;
+  }
+  .rl-collapse:hover { text-decoration: underline; }
+  .chart-box { position: relative; height: 160px; width: 100%; }
+
+  .d-footer { margin-top: auto; padding: 14px 20px 18px; border-top: 1px solid #f3f4f6; display: flex; gap: 10px; }
+  .cta { flex: 1; text-align: center; font-size: 13.5px; padding: 9px 0; border-radius: 8px; cursor: pointer; font-weight: 500; }
+  .cta-main { background: #7c3aed; color: #fff; }
+  .cta-ghost { border: 1px solid #d8c9f7; color: #7c3aed; }
+</style>
+<style id="__dm_no_drag_style__">* { -webkit-user-drag: none !important; }</style><style id="__dm_bindable_badge_style__">[data-sp-bindable="database"]{outline:1px dashed #0088ff;outline-offset:2px;border-radius:4px;}[data-sp-bindable="database"] *{pointer-events:none !important;transition:none !important;animation:none !important;}[data-sp-bindable="database"]{transition:none !important;animation:none !important;}</style></head>
+<body data-page-node-id="PEVB3c6SZeKYV0zOZ7GhHY" style="position: relative;">
+<div class="stage" data-page-node-id="PWVV8bDdGjjL2gpQAu9hrj">
+  
+  <div class="canvas-mock" data-page-node-id="pXBvt4scUGNDia8gnmbnLp">
+    <div class="grid-bg" data-page-node-id="IhJgHpVsve5MTiibLxu8Gh">
+      <div class="g-title" data-page-node-id="1JZDPK9oeDZUXwhhKeXP3i">模型广场</div>
+      <div class="g-cards" data-page-node-id="FL80GELIMsOeG83wAdWApw">
+        <div class="g-card" data-page-node-id="ZqP08UMOFyDEkfdbBGARla"><div class="bar" style="width:40%" data-page-node-id="MYCuuWRNvRMsba3dGNCn0K"></div><div class="bar" data-page-node-id="ELHimpsDRNfJPlutYZ4jLw"></div><div class="bar short" data-page-node-id="HVO8uJxhiTtWC845qSYjOe"></div></div>
+        <div class="g-card" data-page-node-id="IcmNGsEP5Ut6F3mCJ20CUE"><div class="bar" style="width:40%" data-page-node-id="otQErG1GSI7kjdQGbYYRE3"></div><div class="bar" data-page-node-id="aaLyFBJADBHjtkwpxQd3cm"></div><div class="bar short" data-page-node-id="9e3O1IxRhvVX4NILi6ljv4"></div></div>
+        <div class="g-card" data-page-node-id="XCba8t6EBW1PhdOh2SD8XH"><div class="bar" style="width:40%" data-page-node-id="aMkP3mK4JxNVwiLHCNsN7z"></div><div class="bar" data-page-node-id="cOas5JFPM55S0NdZF9du6p"></div><div class="bar short" data-page-node-id="NG6rtA8GNXkKOVt9YN5HvI"></div></div>
+        <div class="g-card" data-page-node-id="59u6VTIBD4OjFrzig1iZ4Q"><div class="bar" style="width:40%" data-page-node-id="2gkqzBz8zb4taZYNZuO5fr"></div><div class="bar" data-page-node-id="mFjl0LyjIY9wYk7covj2oY"></div><div class="bar short" data-page-node-id="5XmQTxO0pl2NQLgdKgDZRI"></div></div>
+        <div class="g-card" data-page-node-id="gcPXBkG9yNtxnpmpmJMEPH"><div class="bar" style="width:40%" data-page-node-id="5X3uxlzxfuCqBtUtHThYXD"></div><div class="bar" data-page-node-id="ALhMABjk0cCBEaUUe49DAV"></div><div class="bar short" data-page-node-id="A0RDPM3j8lPrLaK0c4PzIM"></div></div>
+        <div class="g-card" data-page-node-id="iwG48kcy5CODHIOICcdCXF"><div class="bar" style="width:40%" data-page-node-id="LrHNEy3Ofp7EJ9VM01s7lp"></div><div class="bar" data-page-node-id="QfvDkfgrFTzXnP2H61eOBs"></div><div class="bar short" data-page-node-id="HTUYgGiv2cLoqswNSadYBG"></div></div>
+      </div>
+    </div>
+
+    <div class="drawer" data-page-node-id="OYXc6tmqs0XPCAUq76GSga">
+      <div class="d-header" data-page-node-id="dwwDbSeOQbHLd3Us9xcNOd">
+        <div class="avatar" data-page-node-id="JWQMxrV1ViD2hcHYiJiDcp">混</div>
+        <div data-page-node-id="YU53xllJKwt4WYILvudZwA">
+          <h1 data-page-node-id="bQQbOn2lupy2IE8OX0BEAZ">tencent/hy4-preview</h1>
+          <div class="sub" data-page-node-id="tlujiDSfJKy5GBtZvuxDzq">腾讯混元 · New</div>
+        </div>
+      </div>
+
+      
+
+      <div class="d-sec" data-page-node-id="nvBzpqLVFNfjZyuYpWMztK">
+        <h2 data-page-node-id="dr6C1Eq0Cr9HjX4qhsK4Vb">模型信息</h2>
+        <div class="kv" data-page-node-id="ukyPYrGWShdNt6UdK6CdsE"><span class="k" data-page-node-id="Xl707V0AWcm5aJZCHxVu87">上下文</span><span data-page-node-id="MB7ScT03Bfc9gLQ2IySeT3">1024K</span></div>
+        <div class="kv" data-page-node-id="oKuBL946CHMGKbUAEG0Pl3"><span class="k" data-page-node-id="VfaAwMe53sMEBQjNxRkVP3">支持能力</span><span data-page-node-id="a65icyABDYnTne117uxyMB"><span class="tag" data-page-node-id="aaHFQRrLSAT02CWZLz2blg">工具调用</span><span class="tag" data-page-node-id="5U1UJQ470aYVs8DIT9lg5f">前缀缓存</span></span></div>
+      </div>
+
+      <div class="rl" data-page-node-id="rACFxwVdxBz7zzgOuZ6PrV">
+        <div class="rl-banner" data-page-node-id="GouolaCFwqIOaYqvmuzmCB">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" data-page-node-id="cUFdNNlGhKZJfCgiqMaIKY"><circle cx="8" cy="8" r="6.5" stroke="#7c3aed" stroke-width="1.2" data-page-node-id="BTMMq0Lq5qRz1Ia8FBCBOy"></circle><path d="M8 4.5v4M8 10.8v.7" stroke="#7c3aed" stroke-width="1.3" stroke-linecap="round" data-page-node-id="cp2EyGMqMQJ3IA8K0WQRdv"></path></svg>
+          <span data-page-node-id="fqMjF4IXODYZn5pmfm7MRZ" style="cursor: text;">本模型采用<b data-page-node-id="Z44NKyJTzh0NJwNNtyiLRt">动态限流</b>，限额根据模型负载实时调整</span>
+          
+          </div>
+
+        <div class="rl-body" id="rlBody" data-page-node-id="WiLvStdl0M7IGEN3CzHXED">
+          <div class="rl-values" data-page-node-id="FH0TZVS3hTJc8LiPp2dVA8">
+            <div class="rl-val" data-page-node-id="valRpmCell01">
+              <div class="n" id="vRpm" data-page-node-id="valRpm0001">371</div><div class="l" data-page-node-id="valRpmLabel1" style="">最高 RPM​</div>
+              
+            </div>
+            <div class="rl-val" data-page-node-id="valTpmCell01">
+              <div class="n" id="vTpm" data-page-node-id="valTpm0001">1,616,987</div><div class="l" data-page-node-id="valTpmLabel1" style="">最高 TPM​</div>
+              
+            </div>
+          </div>
+          <div class="rl-meta" data-page-node-id="rlMetaRow1">
+            <span class="live" data-page-node-id="rlLiveDot1"></span>
+            <span data-page-node-id="rlUpdWrap1">更新于 <span id="vTime" data-page-node-id="rlUpdTime1">17:15</span></span>
+            <span class="re" onclick="loadValues()" data-page-node-id="rlRefresh1">刷新</span>
+          </div>
+        </div>
+
+        <div class="rl-trend-head" id="trendHead" onclick="toggleTrend()" data-page-node-id="5sjnVnbxDWeypxkJ0sBqMl">
+          <span data-page-node-id="BKGRDLWlSnim2cu7cmei9G">限流趋势</span><span style="font-size:11px;color:#9ca3af" id="trendHint" data-page-node-id="ulY52XBwxzzvCM345MxHCh">点击展开</span>
+          <span class="arrow" id="trendChevron" data-page-node-id="a8BuAt6gxUQkdnBMblGPqd">▾</span>
+        </div>
+        <div class="rl-trend" id="trendBox" data-page-node-id="SDXQvPYzFee9tL1vX6cGmH">
+          <div class="rl-tabs" data-page-node-id="PJMr2QxMhBWMXXbjewI5DA">
+            <button class="active" id="tabTpm" onclick="switchM('tpm')" data-page-node-id="88pAExlpSc0zUnXTmNqCF1">TPM</button>
+            <button id="tabRpm" onclick="switchM('rpm')" data-page-node-id="CTMPPDZMUR6xwxMHP5U36c">RPM</button>
+            <span class="grow" data-page-node-id="rlTabGrow1"></span>
+            <button class="active" id="rng1h" onclick="switchRange('1h')" data-page-node-id="rngTab1h">近1小时</button>
+            <button id="rng24h" onclick="switchRange('24h')" data-page-node-id="rngTab24h">近24小时</button>
+          </div>
+          <div class="rl-legend" id="legRow" style="display:none" data-page-node-id="rlLegendRow1">
+            <span data-page-node-id="rlLegAvg1"><i id="legAvgSwatch" style="background:#0284c7" data-page-node-id="HYkDBuInAU04uZS6N95EUE"></i><span id="legAvgTxt" data-page-node-id="LT49TQU1Ifnwa4XNddNgET">每分钟限流值</span></span>
+            <span data-page-node-id="rlLegBand1"><i id="legBandSwatch" style="background: rgb(219, 234, 254); border: 1px solid rgb(147, 197, 253);" data-page-node-id="2G6aZ5wD8yKqSIdLZqL9cP"></i>桶内分钟峰值</span>
+          </div>
+          <div class="chart-box" data-page-node-id="vTJfzBgc22EDf3GsQqKjF8"><canvas id="spark" role="img" aria-label="限流趋势折线图，鼠标悬停可查看每个数据点的限流值" data-page-node-id="ekPsKSzc87eZH0rzfNpqEB" width="718" height="320" style="display: block; box-sizing: border-box; height: 160px; width: 359px;">限流趋势图</canvas></div>
+          <div class="rl-cap" id="cap" data-page-node-id="wSq3idEQlimHSyl1Jzc8JH">近 1 小时 · 每点 1 分钟（最小粒度）· 共 60 个数据点 · 区间最高 1.74M tokens/分</div>
+          <div class="rl-note" id="note" style="display:none" data-page-node-id="rlNoteRow1"></div>
+          
+        </div>
+      </div>
+
+      <div class="d-sec" data-page-node-id="tAtXLalwe6KaG78Ff03szE">
+        <div class="kv" data-page-node-id="Rt0E47iAcK1M4WOiBmdkyk"><span class="k" data-page-node-id="fnQQK2XuOTZWhryqQmpuwY">发布日期</span><span data-page-node-id="WeHmESfjCCKYibatoqcAqm">2026-08-28</span></div>
+        <div class="kv" data-page-node-id="G8NtCujpFYwMjMGktRp3vs"><span class="k" data-page-node-id="f1UUSnYQskaVcBPDpRtyCD">模型备案</span><span style="font-size:12px;color:#6b7280" data-page-node-id="HmTL0Act0X4UL09HWmmaZ6">深圳腾讯 · Guangdong-TencentHunyuan-20230901</span></div>
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+<script>
+let chart = null, metric = 'tpm', range = '1h', trendOpen = false;
+
+const BASE = { tpm: 2050000, rpm: 470 };
+const BUCKET_MIN = { '1h': 1, '24h': 15 };
+
+function $(id) { return document.getElementById(id); }
+function rnd(i, seed) { const x = Math.sin(i * 12.9898 + seed) * 43758.5453; return x - Math.floor(x); }
+function hm(d) { return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); }
+function unitOf(m) { return m === 'tpm' ? 'tokens/分' : '次/分'; }
+function fmtShort(v, m) {
+  if (m === 'tpm') return v >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.round(v / 1e3) + 'K';
+  return v.toLocaleString();
+}
+
+function minuteValue(m, t) {
+  const hour = t.getHours() + t.getMinutes() / 60;
+  const load = 1 + 0.20 * Math.cos(((hour - 4) / 24) * 2 * Math.PI);
+  const idx = Math.round(t.getTime() / 60000);
+  const wob = 1 + 0.045 * Math.sin(idx / 9.3) + 0.06 * (rnd(idx, 17) - 0.5) + 0.03 * (rnd(idx, 91) - 0.5);
+  return Math.round(BASE[m] * load * wob);
+}
+
+function buildSeries(m, r) {
+  const step = BUCKET_MIN[r];
+  const count = r === '1h' ? 60 : 96;
+  const now = new Date();
+  const align = new Date(now.getTime() - now.getSeconds() * 1000 - (now.getMinutes() % step) * 60000);
+  const out = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const t1 = new Date(align.getTime() - i * step * 60000);
+    const t0 = new Date(t1.getTime() - step * 60000);
+    const samples = [];
+    for (let k = 0; k < step; k++) samples.push(minuteValue(m, new Date(t0.getTime() + k * 60000)));
+    const avg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+    out.push({ t0, t1, avg, max: Math.max(...samples), raw: step === 1, n: step });
+  }
+  return out;
+}
+
+function loadValues() {
+  const tpm = buildSeries('tpm', '1h').pop();
+  const rpm = buildSeries('rpm', '1h').pop();
+  if ($('vTime')) $('vTime').textContent = hm(tpm.t1);
+  if ($('vTpm')) $('vTpm').textContent = tpm.avg.toLocaleString();
+  if ($('vRpm')) $('vRpm').textContent = rpm.avg.toLocaleString();
+}
+
+function toggleTrend(force) {
+  trendOpen = typeof force === 'boolean' ? force : !trendOpen;
+  const box = $('trendBox'), head = $('trendHead');
+  if (box) box.classList.toggle('show', trendOpen);
+  if (head) head.classList.toggle('open', trendOpen);
+  if ($('trendHint')) $('trendHint').textContent = trendOpen ? '点击收起' : '点击展开';
+  if ($('trendChevron')) $('trendChevron').textContent = trendOpen ? '▴' : '▾';
+  if ($('bannerChevron')) $('bannerChevron').textContent = trendOpen ? '▴' : '▾';
+  if (trendOpen) {
+    render();
+    requestAnimationFrame(() => {
+      if (chart) chart.resize();
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+}
+
+function switchM(m) {
+  metric = m;
+  if ($('tabTpm')) $('tabTpm').classList.toggle('active', m === 'tpm');
+  if ($('tabRpm')) $('tabRpm').classList.toggle('active', m === 'rpm');
+  render();
+}
+
+function switchRange(r) {
+  range = r;
+  if ($('rng1h')) $('rng1h').classList.toggle('active', r === '1h');
+  if ($('rng24h')) $('rng24h').classList.toggle('active', r === '24h');
+  render();
+}
+
+function bestWindow(s) {
+  const w = 16;
+  let best = 0, at = 0;
+  for (let i = 0; i + w <= s.length; i++) {
+    const a = s.slice(i, i + w).reduce((x, p) => x + p.avg, 0) / w;
+    if (a > best) { best = a; at = i; }
+  }
+  return { from: hm(s[at].t0), to: hm(s[at + w - 1].t1), val: Math.round(best) };
+}
+
+function render() {
+  const cv = $('spark');
+  if (!cv) return;
+  const s = buildSeries(metric, range);
+  const isTpm = metric === 'tpm';
+  const raw = s[0].raw;
+  const cAvg = isTpm ? '#0284c7' : '#7c3aed';
+  const cSoft = isTpm ? 'rgba(2,132,199,.10)' : 'rgba(124,58,237,.10)';
+  const cBand = isTpm ? '#dbeafe' : '#ede9fe';
+  const cBandLine = isTpm ? '#93c5fd' : '#c4b5fd';
+
+  if ($('legRow')) $('legRow').style.display = raw ? 'none' : 'flex';
+  if ($('legAvgSwatch')) $('legAvgSwatch').style.background = cAvg;
+  if ($('legAvgTxt')) $('legAvgTxt').textContent = raw ? '每分钟限流值' : '15 分钟区间均值';
+  if ($('legBandSwatch')) { $('legBandSwatch').style.background = cBand; $('legBandSwatch').style.borderColor = cBandLine; }
+
+  const peak = Math.max(...s.map(p => p.avg));
+  if ($('cap')) $('cap').textContent = raw
+    ? '近 1 小时 · 每点 1 分钟（最小粒度）· 共 ' + s.length + ' 个数据点 · 区间最高 ' + fmtShort(peak, metric) + ' ' + unitOf(metric)
+    : '近 24 小时 · 每点 15 分钟（15 个分钟样本聚合）· 共 ' + s.length + ' 个数据点 · 均值最高 ' + fmtShort(peak, metric) + ' ' + unitOf(metric);
+
+  if ($('note')) {
+    if (range === '24h') {
+      const bw = bestWindow(s);
+      $('note').textContent = '推荐时段 ' + bw.from + '–' + bw.to + '：平台负载低，限流值通常最高（区间均值 ' +
+        fmtShort(bw.val, metric) + ' ' + unitOf(metric) + '）。';
+      $('note').style.display = 'block';
+    } else {
+      $('note').style.display = 'none';
+    }
+  }
+
+  const labels = s.map(p => hm(p.t1));
+  const datasets = raw
+    ? [{ data: s.map(p => p.avg), borderColor: cAvg, backgroundColor: cSoft, borderWidth: 1.8, fill: 'origin',
+        tension: .3, pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: cAvg, pointHoverBorderColor: '#fff' }]
+    : [
+        { data: s.map(p => p.avg), borderColor: cAvg, borderWidth: 1.8, fill: false, tension: .35,
+          pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: cAvg, pointHoverBorderColor: '#fff' },
+        { data: s.map(p => p.max), borderColor: cBandLine, borderWidth: 1, borderDash: [3,3], fill: '-1',
+          backgroundColor: cBand, tension: .35, pointRadius: 0, pointHoverRadius: 0 }
+      ];
+
+  if (chart) chart.destroy();
+  chart = new Chart(cv.getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a2e', padding: 9, cornerRadius: 6,
+          titleFont: { size: 11, weight: '500' }, bodyFont: { size: 11 }, bodySpacing: 3,
+          caretSize: 4, displayColors: false,
+          callbacks: {
+            title: items => {
+              const p = s[items[0].dataIndex];
+              return raw ? hm(p.t1) : hm(p.t0) + ' – ' + hm(p.t1) + '（15 分钟）';
+            },
+            label: c => {
+              const v = fmtShort(c.parsed.y, metric) + ' ' + unitOf(metric);
+              if (raw) return '限流值  ' + v;
+              return (c.datasetIndex === 0 ? '区间均值  ' : '桶内峰值  ') + v;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#b0b4bc', font: { size: 10 }, maxTicksLimit: 5, maxRotation: 0 } },
+        y: { border: { display: false }, grid: { color: '#f3f4f6' },
+          ticks: { color: '#b0b4bc', font: { size: 10 }, maxTicksLimit: 4, callback: v => fmtShort(v, metric) } }
+      }
+    }
+  });
+}
+
+function init() {
+  loadValues();
+  const box = $('trendBox');
+  trendOpen = !!(box && box.classList.contains('show'));
+  if (trendOpen) render();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+</script>
+
+
+
+
+
+
+</body></html>
